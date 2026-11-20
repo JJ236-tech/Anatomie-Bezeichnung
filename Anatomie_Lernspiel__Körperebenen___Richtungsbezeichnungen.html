@@ -1,0 +1,1032 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Anatomie-Trainer: Körperebenen & Richtungsbezeichnungen</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f1f5f9;
+            color: #0f172a;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        /* Shake-Animation bei falscher Zuordnung */
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20% { transform: translateX(-6px); }
+            40% { transform: translateX(6px); }
+            60% { transform: translateX(-4px); }
+            80% { transform: translateX(4px); }
+        }
+
+        .animate-shake {
+            animation: shake 0.4s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+            border-color: #ef4444 !important;
+            background-color: #fef2f2 !important;
+        }
+
+        /* Pop-In-Animation bei richtiger Zuordnung */
+        @keyframes popSuccess {
+            0% { transform: scale(0.95); }
+            50% { transform: scale(1.04); }
+            100% { transform: scale(1); }
+        }
+
+        .animate-pop {
+            animation: popSuccess 0.3s ease-out forwards;
+        }
+
+        /* Drag & Drop Styling */
+        .word-chip {
+            touch-action: manipulation;
+            transition: all 0.18s ease;
+        }
+        .word-chip:active {
+            transform: scale(0.96);
+        }
+        .word-chip.selected {
+            ring: 3px;
+            background-color: #2563eb;
+            color: #ffffff;
+            border-color: #1d4ed8;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px -4px rgba(37, 99, 235, 0.35);
+        }
+
+        .drop-zone {
+            transition: all 0.2s ease;
+        }
+        .drop-zone.drag-over {
+            background-color: #dbeafe !important;
+            border-color: #2563eb !important;
+            border-style: solid !important;
+            transform: scale(1.02);
+        }
+        .drop-zone.highlighted {
+            border-color: #0284c7;
+            background-color: #f0f9ff;
+            box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.2);
+        }
+
+        /* SVG Highlight-Klassen */
+        .svg-connector {
+            transition: stroke 0.2s ease, stroke-width 0.2s ease, opacity 0.2s ease;
+        }
+        .svg-connector.active-highlight {
+            stroke: #0284c7 !important;
+            stroke-width: 3.5 !important;
+            opacity: 1 !important;
+        }
+        .svg-target-group {
+            transition: opacity 0.2s ease, filter 0.2s ease;
+        }
+        .svg-target-group.active-highlight {
+            filter: drop-shadow(0 0 6px rgba(2, 132, 199, 0.85));
+        }
+        .svg-target-group.solved-item {
+            opacity: 1;
+        }
+
+        /* Custom Scrollbar für Wortbank */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #e2e8f0;
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #94a3b8;
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <!-- Top Header & Navigation -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+            <!-- Titel & Icon -->
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-sky-600 text-white flex items-center justify-center shadow-sm shrink-0">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15M9 9l6 6m0-6l-6 6"/>
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="text-base sm:text-lg font-bold text-slate-900 leading-tight">Anatomie-Zuordnungstrainer</h1>
+                    <p class="text-xs text-slate-500 hidden sm:block">Ziehe die Fachbegriffe in die passende Lücke oder tippe sie nacheinander an.</p>
+                </div>
+            </div>
+
+            <!-- Level Auswahl Tabs -->
+            <div class="flex bg-slate-100 p-1 rounded-xl border border-slate-200">
+                <button id="tab-level-1" onclick="switchLevel(1)" class="px-3 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all bg-white text-sky-700 shadow-sm">
+                    1. Ebenen & Achsen (6)
+                </button>
+                <button id="tab-level-2" onclick="switchLevel(2)" class="px-3 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all text-slate-600 hover:text-slate-900">
+                    2. Lage & Richtung (17)
+                </button>
+            </div>
+
+            <!-- Statistik & Steuerung -->
+            <div class="flex items-center gap-2 sm:gap-3">
+                <!-- Fortschritt -->
+                <div class="bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-xl flex items-center gap-1.5">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                    <span class="text-xs sm:text-sm font-semibold text-emerald-900">Richtig: <span id="score-display" class="font-bold">0 / 6</span></span>
+                </div>
+
+                <!-- Fehlerzähler -->
+                <div id="error-badge" class="bg-rose-50 border border-rose-200 px-3 py-1.5 rounded-xl flex items-center gap-1.5 transition-colors">
+                    <svg class="w-4 h-4 text-rose-600" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"/>
+                    </svg>
+                    <span class="text-xs sm:text-sm font-semibold text-rose-900">Fehler: <span id="error-display" class="font-extrabold text-rose-600 text-sm sm:text-base">0</span></span>
+                </div>
+
+                <!-- Neustart Button -->
+                <button onclick="resetCurrentLevel()" title="Neu starten & Wörter mischen" class="p-2 sm:px-3 sm:py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs sm:text-sm font-medium flex items-center gap-1.5 transition shadow-sm">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"/>
+                    </svg>
+                    <span class="hidden md:inline">Neu mischen</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Hauptbereich -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-4 py-4 flex flex-col gap-4">
+
+        <!-- Info-Leiste & Hilfsschalter -->
+        <div class="bg-white rounded-2xl border border-slate-200 px-4 py-2.5 flex flex-wrap items-center justify-between gap-2 shadow-sm">
+            <div class="flex items-center gap-2 text-xs sm:text-sm text-slate-600">
+                <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-sky-100 text-sky-700 font-bold text-xs">i</span>
+                <span id="instruction-text">Ordne die <strong>3 Körperebenen</strong> und <strong>3 Körperachsen</strong> den farbigen Flächen und Pfeilen zu.</span>
+            </div>
+
+            <!-- Schalter für deutsche Übersetzung in Level 2 -->
+            <div id="hint-toggle-container" class="hidden items-center gap-2">
+                <label for="toggle-hints" class="text-xs sm:text-sm font-medium text-slate-700 cursor-pointer flex items-center gap-2">
+                    <span>Deutsche Bedeutung in Lücken anzeigen:</span>
+                    <button type="button" id="toggle-hints" role="switch" aria-checked="true" onclick="toggleHints()" class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent bg-sky-600 transition-colors duration-200 ease-in-out focus:outline-none">
+                        <span id="toggle-hints-knob" class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out translate-x-5"></span>
+                    </button>
+                </label>
+            </div>
+        </div>
+
+        <!-- Wortbank (Sticky oben unter Header auf Mobilgeräten / gut erreichbar) -->
+        <section aria-label="Wortbank" class="bg-white rounded-2xl border border-slate-200 p-3 sm:p-4 shadow-sm">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Verfügbare Fachbegriffe (Ziehen oder Antippen)</span>
+                <span id="selected-hint" class="text-xs font-semibold text-sky-600 hidden">Wort ausgewählt – tippe jetzt auf die passende Lücke!</span>
+            </div>
+            <div id="word-bank" class="flex flex-wrap gap-2 min-h-[44px] items-center">
+                <!-- Wörter werden per JS eingefügt -->
+            </div>
+        </section>
+
+        <!-- Interaktives Spielfeld (Grafik + Drop-Zonen) -->
+        <section id="game-board" class="bg-white rounded-2xl border border-slate-200 p-3 sm:p-6 shadow-sm flex-1 flex flex-col justify-center">
+            <!-- Wird dynamisch je nach Level gerendert -->
+        </section>
+
+    </main>
+
+    <!-- Erfolgs-Modal bei Abschluss eines Levels -->
+    <div id="victory-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
+        <div class="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 text-center shadow-2xl border border-slate-100 transform transition-all">
+            <div class="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-inner">
+                <svg class="w-9 h-9" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+            </div>
+            <h2 class="text-2xl font-extrabold text-slate-900 mb-1">Hervorragend gelöst!</h2>
+            <p id="victory-subtitle" class="text-sm text-slate-600 mb-6">Du hast alle Begriffe in diesem Bereich korrekt zugeordnet.</p>
+
+            <div class="bg-slate-50 rounded-2xl p-4 mb-6 border border-slate-200 flex justify-around">
+                <div>
+                    <div class="text-xs font-semibold uppercase text-slate-400">Begriffe</div>
+                    <div id="victory-total" class="text-xl font-extrabold text-emerald-600">6 / 6</div>
+                </div>
+                <div class="w-px bg-slate-200"></div>
+                <div>
+                    <div class="text-xs font-semibold uppercase text-slate-400">Benötigte Fehler</div>
+                    <div id="victory-errors" class="text-xl font-extrabold text-rose-600">0</div>
+                </div>
+            </div>
+
+            <div class="flex flex-col sm:flex-row gap-3">
+                <button onclick="closeModalAndReset()" class="flex-1 px-4 py-3 rounded-xl border border-slate-300 text-slate-700 font-semibold text-sm hover:bg-slate-50 transition">
+                    Nochmal üben
+                </button>
+                <button id="victory-next-btn" onclick="goToNextLevel()" class="flex-1 px-4 py-3 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-semibold text-sm shadow-md transition">
+                    Weiter zu Level 2 →
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==========================================
+        // DATENDEFINITIONEN FÜR BEIDE LEVEL
+        // ==========================================
+
+        const LEVEL_1_DATA = [
+            {
+                id: 'frontalebene',
+                term: 'Frontalebene',
+                hint: 'Teilt den Körper in vorne & hinten (pink)',
+                side: 'left',
+                badgeColor: 'bg-pink-100 text-pink-800 border-pink-300',
+                dotColor: '#ec4899'
+            },
+            {
+                id: 'transversalebene',
+                term: 'Transversalebene',
+                hint: 'Waagerechte Ebene: teilt in oben & unten (gelb/orange)',
+                side: 'left',
+                badgeColor: 'bg-amber-100 text-amber-800 border-amber-300',
+                dotColor: '#f59e0b'
+            },
+            {
+                id: 'sagittalebene',
+                term: 'Sagittalebene',
+                hint: 'Teilt den Körper in links & rechts (grün)',
+                side: 'left',
+                badgeColor: 'bg-emerald-100 text-emerald-800 border-emerald-300',
+                dotColor: '#10b981'
+            },
+            {
+                id: 'longitudinalachse',
+                term: 'Longitudinalachse',
+                hint: 'Senkrechte Längsachse von Kopf bis Fuß (violett)',
+                side: 'right',
+                badgeColor: 'bg-purple-100 text-purple-800 border-purple-300',
+                dotColor: '#9333ea'
+            },
+            {
+                id: 'transversalachse',
+                term: 'Transversalachse',
+                hint: 'Waagerechte Querachse von links nach rechts (orange)',
+                side: 'right',
+                badgeColor: 'bg-orange-100 text-orange-800 border-orange-300',
+                dotColor: '#ea580c'
+            },
+            {
+                id: 'sagittalachse',
+                term: 'Sagittalachse',
+                hint: 'Pfeilachse von hinten nach vorne durch den Körper (türkis)',
+                side: 'right',
+                badgeColor: 'bg-teal-100 text-teal-800 border-teal-300',
+                dotColor: '#0d9488'
+            }
+        ];
+
+        // Level 2: Exakt die 17 Begriffe mit den Positionen passend zur Grafik
+        const LEVEL_2_DATA = [
+            // Linke Spalte (8 Begriffe von oben nach unten)
+            { id: 'radial', term: 'radial', hint: '(zur Speiche hin)', side: 'left' },
+            { id: 'frontal', term: 'frontal', hint: '(zur Stirn hin)', side: 'left' },
+            { id: 'okzipital', term: 'okzipital', hint: '(zum Hinterhaupt hin)', side: 'left' },
+            { id: 'superior', term: 'superior/kranial', hint: '(zum Kopf hin)', side: 'left' },
+            { id: 'inferior', term: 'inferior/kaudal', hint: '(zum Steiß hin)', side: 'left' },
+            { id: 'proximal', term: 'proximal', hint: '(zum Rumpf hin)', side: 'left' },
+            { id: 'distal', term: 'distal', hint: '(vom Rumpf weg)', side: 'left' },
+            { id: 'tibial', term: 'tibial', hint: '(zum Schienbein hin)', side: 'left' },
+            { id: 'plantar', term: 'plantar', hint: '(zur Fußsohle hin)', side: 'left' },
+
+            // Rechte Spalte (8 Begriffe von oben nach unten)
+            { id: 'palmar', term: 'palmar/volar', hint: '(zur Handfläche hin)', side: 'right' },
+            { id: 'ulnar', term: 'ulnar', hint: '(zur Elle hin)', side: 'right' },
+            { id: 'median', term: 'median', hint: '(in der Körpermittelebene)', side: 'right' },
+            { id: 'medial', term: 'medial', hint: '(zur Mittelebene hin)', side: 'right' },
+            { id: 'lateral', term: 'lateral', hint: '(zur Seite hin)', side: 'right' },
+            { id: 'anterior', term: 'anterior/ventral', hint: '(nach vorne/zur Bauchseite hin)', side: 'right' },
+            { id: 'posterior', term: 'posterior/dorsal', hint: '(nach hinten/zum Rücken hin)', side: 'right' },
+            { id: 'fibular', term: 'fibular', hint: '(zum Wadenbein hin)', side: 'right' }
+        ];
+
+        // ==========================================
+        // SPIELZUSTAND (STATE)
+        // ==========================================
+        let currentLevel = 1;
+        let errorsCount = 0;
+        let solvedIds = new Set();
+        let selectedWordId = null; // Für Klick-zu-Klick Interaktion
+        let draggedWordId = null;  // Für Drag & Drop Interaktion
+        let showHints = true;
+        let shuffledWords = [];
+
+        // ==========================================
+        // INITIALISIERUNG & HILFSFUNKTIONEN
+        // ==========================================
+        function shuffleArray(array) {
+            const arr = [...array];
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
+            return arr;
+        }
+
+        function getCurrentData() {
+            return currentLevel === 1 ? LEVEL_1_DATA : LEVEL_2_DATA;
+        }
+
+        function switchLevel(level) {
+            currentLevel = level;
+
+            // Tabs optisch aktualisieren
+            const tab1 = document.getElementById('tab-level-1');
+            const tab2 = document.getElementById('tab-level-2');
+            const hintToggleContainer = document.getElementById('hint-toggle-container');
+            const instructionText = document.getElementById('instruction-text');
+
+            if (level === 1) {
+                tab1.className = 'px-3 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all bg-white text-sky-700 shadow-sm';
+                tab2.className = 'px-3 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all text-slate-600 hover:text-slate-900';
+                hintToggleContainer.classList.add('hidden');
+                hintToggleContainer.classList.remove('flex');
+                instructionText.innerHTML = 'Ordne die <strong>3 Körperebenen</strong> (farbige Flächen) und <strong>3 Körperachsen</strong> (Pfeile) den passenden Lücken zu.';
+            } else {
+                tab2.className = 'px-3 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all bg-white text-sky-700 shadow-sm';
+                tab1.className = 'px-3 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all text-slate-600 hover:text-slate-900';
+                hintToggleContainer.classList.remove('hidden');
+                hintToggleContainer.classList.add('flex');
+                instructionText.innerHTML = 'Ordne alle <strong>17 medizinischen Lage- und Richtungsbezeichnungen</strong> den Pfeilen und Markierungen am Körper zu.';
+            }
+
+            resetCurrentLevel();
+        }
+
+        function resetCurrentLevel() {
+            errorsCount = 0;
+            solvedIds.clear();
+            selectedWordId = null;
+            draggedWordId = null;
+            shuffledWords = shuffleArray(getCurrentData());
+
+            updateStatsUI();
+            renderWordBank();
+            renderGameBoard();
+        }
+
+        function toggleHints() {
+            showHints = !showHints;
+            const btn = document.getElementById('toggle-hints');
+            const knob = document.getElementById('toggle-hints-knob');
+
+            btn.setAttribute('aria-checked', showHints);
+            if (showHints) {
+                btn.classList.remove('bg-slate-300');
+                btn.classList.add('bg-sky-600');
+                knob.classList.add('translate-x-5');
+                knob.classList.remove('translate-x-0');
+            } else {
+                btn.classList.add('bg-slate-300');
+                btn.classList.remove('bg-sky-600');
+                knob.classList.remove('translate-x-5');
+                knob.classList.add('translate-x-0');
+            }
+
+            // Alle Hinweis-Texte in den Lücken aktualisieren
+            document.querySelectorAll('.drop-hint-text').forEach(el => {
+                if (showHints) {
+                    el.classList.remove('hidden');
+                } else {
+                    el.classList.add('hidden');
+                }
+            });
+        }
+
+        function updateStatsUI() {
+            const total = getCurrentData().length;
+            document.getElementById('score-display').textContent = `${solvedIds.size} / ${total}`;
+            document.getElementById('error-display').textContent = errorsCount;
+        }
+
+        // ==========================================
+        // WORTBANK RENDERN & INTERAKTION
+        // ==========================================
+        function renderWordBank() {
+            const bank = document.getElementById('word-bank');
+            const selectedHint = document.getElementById('selected-hint');
+            bank.innerHTML = '';
+
+            const remaining = shuffledWords.filter(item => !solvedIds.has(item.id));
+
+            if (selectedWordId && !solvedIds.has(selectedWordId)) {
+                selectedHint.classList.remove('hidden');
+            } else {
+                selectedHint.classList.add('hidden');
+            }
+
+            if (remaining.length === 0) {
+                bank.innerHTML = `<span class="text-sm font-medium text-emerald-600 flex items-center gap-1.5">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                    Alle Begriffe erfolgreich zugeordnet!
+                </span>`;
+                return;
+            }
+
+            remaining.forEach(item => {
+                const chip = document.createElement('button');
+                chip.type = 'button';
+                chip.draggable = true;
+                chip.dataset.id = item.id;
+                const isSelected = selectedWordId === item.id;
+
+                chip.className = `word-chip px-3.5 py-2 rounded-xl border text-xs sm:text-sm font-semibold shadow-sm cursor-grab active:cursor-grabbing ${
+                    isSelected
+                        ? 'selected bg-sky-600 text-white border-sky-700 ring-2 ring-sky-300'
+                        : 'bg-slate-50 hover:bg-sky-50 text-slate-800 border-slate-300 hover:border-sky-400'
+                }`;
+                chip.textContent = item.term;
+
+                // Klick-Auswahl (für Touch & einfache Bedienung)
+                chip.addEventListener('click', () => {
+                    if (selectedWordId === item.id) {
+                        selectedWordId = null;
+                    } else {
+                        selectedWordId = item.id;
+                    }
+                    renderWordBank();
+                });
+
+                // Drag Events
+                chip.addEventListener('dragstart', (e) => {
+                    draggedWordId = item.id;
+                    selectedWordId = item.id;
+                    e.dataTransfer.setData('text/plain', item.id);
+                    e.dataTransfer.effectAllowed = 'move';
+                    setTimeout(() => chip.classList.add('opacity-50'), 0);
+                });
+
+                chip.addEventListener('dragend', () => {
+                    draggedWordId = null;
+                    chip.classList.remove('opacity-50');
+                });
+
+                bank.appendChild(chip);
+            });
+        }
+
+        // ==========================================
+        // SPIELFELD & SVG-GRAFIKEN RENDERN
+        // ==========================================
+        function renderGameBoard() {
+            const board = document.getElementById('game-board');
+            if (currentLevel === 1) {
+                board.innerHTML = buildLevel1HTML();
+            } else {
+                board.innerHTML = buildLevel2HTML();
+            }
+            attachDropZoneListeners();
+        }
+
+        // Erzeugt eine einzelne Drop-Zone HTML
+        function createDropZoneHTML(item, indexNumber) {
+            const isSolved = solvedIds.has(item.id);
+            const hintClass = (currentLevel === 2 && !showHints) ? 'hidden' : '';
+
+            if (isSolved) {
+                return `
+                    <div id="zone-${item.id}" data-target-id="${item.id}"
+                         onmouseenter="highlightSvgElement('${item.id}', true)"
+                         onmouseleave="highlightSvgElement('${item.id}', false)"
+                         class="drop-zone solved animate-pop rounded-xl border-2 border-emerald-500 bg-emerald-50/90 px-3 py-2 flex flex-col justify-center shadow-sm">
+                        <div class="flex items-center justify-between gap-2">
+                            <span class="font-bold text-xs sm:text-sm text-emerald-900">${item.term}</span>
+                            <svg class="w-4 h-4 text-emerald-600 shrink-0" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+                            </svg>
+                        </div>
+                        <span class="drop-hint-text text-[11px] leading-tight text-emerald-700 mt-0.5 ${hintClass}">${item.hint}</span>
+                    </div>
+                `;
+            }
+
+            const dotIndicator = item.dotColor
+                ? `<span class="w-2.5 h-2.5 rounded-full shrink-0" style="background-color: ${item.dotColor}"></span>`
+                : `<span class="w-5 h-5 rounded-full bg-slate-200 text-slate-600 text-[10px] font-bold flex items-center justify-center shrink-0">${indexNumber}</span>`;
+
+            return `
+                <div id="zone-${item.id}" data-target-id="${item.id}"
+                     onmouseenter="highlightSvgElement('${item.id}', true)"
+                     onmouseleave="highlightSvgElement('${item.id}', false)"
+                     class="drop-zone rounded-xl border-2 border-dashed border-slate-300 hover:border-sky-400 bg-slate-50/80 px-3 py-2 flex flex-col justify-center cursor-pointer min-h-[52px]">
+                    <div class="flex items-center gap-2">
+                        ${dotIndicator}
+                        <span class="text-xs font-medium text-slate-400 italic">Begriff hierher ziehen...</span>
+                    </div>
+                    <span class="drop-hint-text text-[11px] leading-tight text-slate-600 font-medium mt-1 pl-4 ${hintClass}">${item.hint}</span>
+                </div>
+            `;
+        }
+
+        // ==========================================
+        // LEVEL 1: KÖRPEREBENEN & KÖRPERACHSEN (SVG + LAYOUT)
+        // ==========================================
+        function buildLevel1HTML() {
+            const leftItems = LEVEL_1_DATA.filter(i => i.side === 'left');
+            const rightItems = LEVEL_1_DATA.filter(i => i.side === 'right');
+
+            return `
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6 items-center">
+                    <!-- Linke Spalte: Körperebenen -->
+                    <div class="lg:col-span-3 flex flex-col gap-3 order-2 lg:order-1">
+                        <div class="text-xs font-bold uppercase tracking-wider text-slate-400 px-1">Körperebenen (Flächen)</div>
+                        ${leftItems.map((item, idx) => createDropZoneHTML(item, idx + 1)).join('')}
+                    </div>
+
+                    <!-- Mitte: Hochauflösende SVG Grafik der 3 Ebenen und 3 Achsen -->
+                    <div class="lg:col-span-6 flex justify-center order-1 lg:order-2">
+                        <div class="w-full max-w-[460px] bg-slate-50/70 rounded-2xl border border-slate-200 p-2 sm:p-3">
+                            <svg viewBox="0 0 460 460" class="w-full h-auto overflow-visible" aria-label="Anatomische Darstellung der Körperebenen und Körperachsen">
+                                <defs>
+                                    <!-- Pfeilspitzen für Achsen -->
+                                    <marker id="arrow-purple" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                                        <path d="M 0 1.5 L 10 5 L 0 8.5 z" fill="#9333ea"/>
+                                    </marker>
+                                    <marker id="arrow-orange" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                                        <path d="M 0 1.5 L 10 5 L 0 8.5 z" fill="#ea580c"/>
+                                    </marker>
+                                    <marker id="arrow-teal" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                                        <path d="M 0 1.5 L 10 5 L 0 8.5 z" fill="#0d9488"/>
+                                    </marker>
+                                </defs>
+
+                                <!-- 1. HINTERE HÄLFTE DER FRONTALEBENE (PINK) -->
+                                <g id="svg-group-frontalebene" class="svg-target-group">
+                                    <polygon points="105,65 345,40 345,390 105,415" fill="#ec4899" fill-opacity="0.22" stroke="#db2777" stroke-width="2"/>
+                                    <!-- Badge oben links an der Ebene -->
+                                    <rect x="24" y="42" width="110" height="24" rx="6" fill="#ec4899"/>
+                                    <text x="79" y="58" text-anchor="middle" fill="#ffffff" font-size="11" font-weight="700">Ebene 1 (Pink)</text>
+                                    <line x1="134" y1="54" x2="155" y2="62" stroke="#db2777" stroke-width="2"/>
+                                </g>
+
+                                <!-- 2. HINTERE HÄLFTE DER SAGITTALEBENE (GRÜN) -->
+                                <g id="svg-group-sagittalebene-back" class="svg-target-group">
+                                    <polygon points="165,45 230,68 230,425 165,395" fill="#10b981" fill-opacity="0.24" stroke="#059669" stroke-width="1.8"/>
+                                </g>
+
+                                <!-- MENSCHLICHE SILHOUETTE (ANATOMISCHE GRUNDFORM) -->
+                                <g fill="#94a3b8" fill-opacity="0.65" stroke="#64748b" stroke-width="1.5" stroke-linejoin="round">
+                                    <!-- Kopf & Hals -->
+                                    <ellipse cx="230" cy="82" rx="20" ry="25"/>
+                                    <path d="M220,105 L220,120 L240,120 L240,105 Z"/>
+                                    <!-- Torso & Ausgestreckte Arme -->
+                                    <path d="M220,120
+                                             C195,123 175,128 150,132
+                                             L68,136 C58,136 55,144 65,147
+                                             L155,152
+                                             L182,155
+                                             L188,235
+                                             L182,315 L186,395 L175,408 L198,408 L204,395 L216,275
+                                             L230,262
+                                             L244,275 L256,395 L262,408 L285,408 L274,395 L278,315
+                                             L272,235
+                                             L278,155
+                                             L305,152
+                                             L395,147 C405,144 402,136 392,136
+                                             L310,132
+                                             C285,128 265,123 240,120 Z"/>
+                                </g>
+
+                                <!-- 3. TRANSVERSALEBENE (HORIZONTAL - GELB/ORANGE) -->
+                                <g id="svg-group-transversalebene" class="svg-target-group">
+                                    <polygon points="55,212 285,188 405,222 175,248" fill="#f59e0b" fill-opacity="0.34" stroke="#d97706" stroke-width="2"/>
+                                    <!-- Schnittlinie am Bauch -->
+                                    <path d="M187,218 Q230,226 273,215" fill="none" stroke="#b45309" stroke-width="2.5" stroke-dasharray="4 3"/>
+                                    <!-- Badge links -->
+                                    <rect x="20" y="254" width="118" height="24" rx="6" fill="#f59e0b"/>
+                                    <text x="79" y="270" text-anchor="middle" fill="#ffffff" font-size="11" font-weight="700">Ebene 2 (Gelb)</text>
+                                    <line x1="95" y1="254" x2="115" y2="236" stroke="#d97706" stroke-width="2"/>
+                                </g>
+
+                                <!-- 4. VORDERE HÄLFTE DER SAGITTALEBENE (GRÜN) -->
+                                <g id="svg-group-sagittalebene" class="svg-target-group">
+                                    <polygon points="230,68 295,92 295,445 230,425" fill="#10b981" fill-opacity="0.28" stroke="#059669" stroke-width="2"/>
+                                    <!-- Mittlere Schnittlinie am Körper -->
+                                    <line x1="230" y1="57" x2="230" y2="262" stroke="#047857" stroke-width="2.5"/>
+                                    <!-- Badge unten rechts -->
+                                    <rect x="312" y="322" width="115" height="24" rx="6" fill="#10b981"/>
+                                    <text x="369" y="338" text-anchor="middle" fill="#ffffff" font-size="11" font-weight="700">Ebene 3 (Grün)</text>
+                                    <line x1="312" y1="334" x2="295" y2="334" stroke="#059669" stroke-width="2"/>
+                                </g>
+
+                                <!-- ===================================== -->
+                                <!-- DIE 3 KÖRPERACHSEN (PFEILE)           -->
+                                <!-- ===================================== -->
+
+                                <!-- A. LONGITUDINALACHSE (SENKRECHT - VIOLETT) -->
+                                <g id="svg-group-longitudinalachse" class="svg-target-group">
+                                    <line x1="230" y1="435" x2="230" y2="22" stroke="#9333ea" stroke-width="3" stroke-dasharray="5 3" marker-end="url(#arrow-purple)" marker-start="url(#arrow-purple)"/>
+                                    <rect x="242" y="14" width="108" height="22" rx="6" fill="#f3e8ff" stroke="#9333ea" stroke-width="1.5"/>
+                                    <text x="296" y="29" text-anchor="middle" fill="#6b21a8" font-size="10.5" font-weight="700">Achse A (Senkrecht)</text>
+                                </g>
+
+                                <!-- B. TRANSVERSALACHSE (WAAGERECHT - ORANGE) -->
+                                <g id="svg-group-transversalachse" class="svg-target-group">
+                                    <line x1="72" y1="228" x2="388" y2="205" stroke="#ea580c" stroke-width="3" marker-end="url(#arrow-orange)" marker-start="url(#arrow-orange)"/>
+                                    <rect x="336" y="168" width="112" height="22" rx="6" fill="#ffedd5" stroke="#ea580c" stroke-width="1.5"/>
+                                    <text x="392" y="183" text-anchor="middle" fill="#9a3412" font-size="10.5" font-weight="700">Achse B (Waagerecht)</text>
+                                    <line x1="375" y1="190" x2="365" y2="206" stroke="#ea580c" stroke-width="1.5"/>
+                                </g>
+
+                                <!-- C. SAGITTALACHSE (VON HINTEN NACH VORNE - TÜRKIS) -->
+                                <g id="svg-group-sagittalachse" class="svg-target-group">
+                                    <line x1="128" y1="168" x2="335" y2="268" stroke="#0d9488" stroke-width="3" marker-end="url(#arrow-teal)" marker-start="url(#arrow-teal)"/>
+                                    <rect x="328" y="274" width="118" height="22" rx="6" fill="#ccfbf1" stroke="#0d9488" stroke-width="1.5"/>
+                                    <text x="387" y="289" text-anchor="middle" fill="#115e59" font-size="10.5" font-weight="700">Achse C (Tiefenachse)</text>
+                                </g>
+                            </svg>
+                        </div>
+                    </div>
+
+                    <!-- Rechte Spalte: Körperachsen -->
+                    <div class="lg:col-span-3 flex flex-col gap-3 order-3">
+                        <div class="text-xs font-bold uppercase tracking-wider text-slate-400 px-1">Körperachsen (Pfeile)</div>
+                        ${rightItems.map((item, idx) => createDropZoneHTML(item, idx + 4)).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        // ==========================================
+        // LEVEL 2: LAGE- & RICHTUNGSBEZEICHNUNGEN (17 BEGRIFFE)
+        // ==========================================
+        function buildLevel2HTML() {
+            const leftItems = LEVEL_2_DATA.filter(i => i.side === 'left');
+            const rightItems = LEVEL_2_DATA.filter(i => i.side === 'right');
+
+            return `
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-3 lg:gap-4 items-center">
+                    <!-- Linke Spalte (9 Lücken) -->
+                    <div class="lg:col-span-4 flex flex-col gap-2 order-2 lg:order-1">
+                        ${leftItems.map((item, idx) => createDropZoneHTML(item, idx + 1)).join('')}
+                    </div>
+
+                    <!-- Mitte: Große anatomische Figur mit allen 17 Richtungspfeilen & Nummerierung -->
+                    <div class="lg:col-span-4 flex justify-center order-1 lg:order-2">
+                        <div class="w-full max-w-[380px] bg-slate-50/80 rounded-2xl border border-slate-200 p-2 relative">
+                            <div class="text-[11px] text-center text-slate-400 font-medium mb-1">Fahre über eine Lücke, um den Pfeil hervorzuheben</div>
+                            <svg viewBox="0 0 360 560" class="w-full h-auto overflow-visible" aria-label="Anatomische Figur mit 17 Richtungs- und Lagepfeilen">
+                                <defs>
+                                    <marker id="red-arrow" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="5.5" markerHeight="5.5" orient="auto-start-reverse">
+                                        <path d="M 0 1 L 10 5 L 0 9 z" fill="#e11d48"/>
+                                    </marker>
+                                    <marker id="blue-arrow" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                                        <path d="M 0 1 L 10 5 L 0 9 z" fill="#0284c7"/>
+                                    </marker>
+                                </defs>
+
+                                <!-- ANATOMISCHE MENSCHLICHE SILHOUETTE (LINKER ARM NACH OBEN GESTRECKT) -->
+                                <g fill="#fce7d6" stroke="#d6b49c" stroke-width="1.8" stroke-linejoin="round">
+                                    <!-- Kopf (leicht gedreht) -->
+                                    <path d="M138,118
+                                             C122,118 110,132 112,150
+                                             C114,168 126,178 140,178
+                                             L142,192 L166,192 L164,174
+                                             C174,166 176,146 168,130
+                                             C160,118 148,118 138,118 Z"/>
+                                    <!-- Körper + erhobener linker Arm + gesenkter rechter Arm + Beine -->
+                                    <path d="M142,192
+                                             C124,198 114,208 110,226
+                                             L98,292 L88,338
+                                             C85,346 92,356 100,354
+                                             L108,344 L116,300 L126,255
+                                             L134,315
+                                             L138,415 L142,495
+                                             L112,512 C106,515 108,522 118,522
+                                             L162,520 L164,504
+                                             L166,415 L176,342
+                                             L186,342
+                                             L204,415 L234,506
+                                             L238,526 C240,532 252,532 254,524
+                                             L252,502 L228,408 L212,315
+                                             L214,238
+                                             L206,162 L188,92 L176,48
+                                             C178,38 172,26 162,28
+                                             C154,30 154,42 158,50
+                                             L166,94 L178,162 L174,194
+                                             Z"/>
+                                </g>
+
+                                <!-- Dezente anatomische Hilfslinien (Brustbein, Rippenbogen, Bauchnabel) -->
+                                <path d="M168,205 L173,252 M152,248 Q166,256 173,252 Q184,256 196,246" fill="none" stroke="#e2bba0" stroke-width="1.3" stroke-linecap="round"/>
+
+                                <!-- ================================================= -->
+                                <!-- ALLE 17 ANATOMISCHEN MARKIERUNGEN & PFEILE        -->
+                                <!-- ================================================= -->
+
+                                <!-- 1. RADIAL (zur Speiche hin - Daumenseite am erhobenen Unterarm) -->
+                                <g id="svg-group-radial" class="svg-target-group">
+                                    <path d="M160,65 L167,92" stroke="#e11d48" stroke-width="2.5" stroke-linecap="round"/>
+                                    <line x1="35" y1="32" x2="163" y2="78" stroke="#64748b" stroke-width="1.2" class="svg-connector"/>
+                                    <circle cx="35" cy="32" r="10" fill="#1e293b"/>
+                                    <text x="35" y="36" text-anchor="middle" fill="#fff" font-size="10" font-weight="700">1</text>
+                                </g>
+
+                                <!-- 2. FRONTAL (zur Stirn hin) -->
+                                <g id="svg-group-frontal" class="svg-target-group">
+                                    <path d="M118,128 Q128,120 140,121" fill="none" stroke="#e11d48" stroke-width="2.5" stroke-linecap="round"/>
+                                    <line x1="35" y1="88" x2="128" y2="124" stroke="#64748b" stroke-width="1.2" class="svg-connector"/>
+                                    <circle cx="35" cy="88" r="10" fill="#1e293b"/>
+                                    <text x="35" y="92" text-anchor="middle" fill="#fff" font-size="10" font-weight="700">2</text>
+                                </g>
+
+                                <!-- 3. OKZIPITAL (zum Hinterhaupt hin) -->
+                                <g id="svg-group-okzipital" class="svg-target-group">
+                                    <path d="M167,160 Q173,168 168,176" fill="none" stroke="#e11d48" stroke-width="2.5" stroke-linecap="round"/>
+                                    <line x1="35" y1="145" x2="169" y2="168" stroke="#64748b" stroke-width="1.2" class="svg-connector"/>
+                                    <circle cx="35" cy="145" r="10" fill="#1e293b"/>
+                                    <text x="35" y="149" text-anchor="middle" fill="#fff" font-size="10" font-weight="700">3</text>
+                                </g>
+
+                                <!-- 4. SUPERIOR / KRANIAL (zum Kopf hin) -->
+                                <g id="svg-group-superior" class="svg-target-group">
+                                    <line x1="138" y1="226" x2="138" y2="202" stroke="#e11d48" stroke-width="2.5" marker-end="url(#red-arrow)"/>
+                                    <line x1="35" y1="202" x2="138" y2="214" stroke="#64748b" stroke-width="1.2" class="svg-connector"/>
+                                    <circle cx="35" cy="202" r="10" fill="#1e293b"/>
+                                    <text x="35" y="206" text-anchor="middle" fill="#fff" font-size="10" font-weight="700">4</text>
+                                </g>
+
+                                <!-- 5. INFERIOR / KAUDAL (zum Steiß hin) -->
+                                <g id="svg-group-inferior" class="svg-target-group">
+                                    <line x1="145" y1="252" x2="148" y2="278" stroke="#e11d48" stroke-width="2.5" marker-end="url(#red-arrow)"/>
+                                    <line x1="35" y1="258" x2="146" y2="265" stroke="#64748b" stroke-width="1.2" class="svg-connector"/>
+                                    <circle cx="35" cy="258" r="10" fill="#1e293b"/>
+                                    <text x="35" y="262" text-anchor="middle" fill="#fff" font-size="10" font-weight="700">5</text>
+                                </g>
+
+                                <!-- 6. PROXIMAL (zum Rumpf hin - am Oberschenkel nach oben) -->
+                                <g id="svg-group-proximal" class="svg-target-group">
+                                    <line x1="154" y1="378" x2="152" y2="350" stroke="#e11d48" stroke-width="2.5" marker-end="url(#red-arrow)"/>
+                                    <line x1="35" y1="316" x2="153" y2="364" stroke="#64748b" stroke-width="1.2" class="svg-connector"/>
+                                    <circle cx="35" cy="316" r="10" fill="#1e293b"/>
+                                    <text x="35" y="320" text-anchor="middle" fill="#fff" font-size="10" font-weight="700">6</text>
+                                </g>
+
+                                <!-- 7. DISTAL (vom Rumpf weg - am Oberschenkel nach unten) -->
+                                <g id="svg-group-distal" class="svg-target-group">
+                                    <line x1="154" y1="388" x2="156" y2="416" stroke="#e11d48" stroke-width="2.5" marker-end="url(#red-arrow)"/>
+                                    <line x1="35" y1="376" x2="155" y2="402" stroke="#64748b" stroke-width="1.2" class="svg-connector"/>
+                                    <circle cx="35" cy="376" r="10" fill="#1e293b"/>
+                                    <text x="35" y="380" text-anchor="middle" fill="#fff" font-size="10" font-weight="700">7</text>
+                                </g>
+
+                                <!-- 8. TIBIAL (zum Schienbein hin - Innenseite Unterschenkel) -->
+                                <g id="svg-group-tibial" class="svg-target-group">
+                                    <path d="M166,442 L165,472" stroke="#e11d48" stroke-width="2.5" stroke-linecap="round"/>
+                                    <line x1="35" y1="445" x2="165" y2="457" stroke="#64748b" stroke-width="1.2" class="svg-connector"/>
+                                    <circle cx="35" cy="445" r="10" fill="#1e293b"/>
+                                    <text x="35" y="449" text-anchor="middle" fill="#fff" font-size="10" font-weight="700">8</text>
+                                </g>
+
+                                <!-- 9. PLANTAR (zur Fußsohle hin) -->
+                                <g id="svg-group-plantar" class="svg-target-group">
+                                    <path d="M122,524 L156,523" stroke="#e11d48" stroke-width="2.8" stroke-linecap="round"/>
+                                    <line x1="35" y1="518" x2="138" y2="524" stroke="#64748b" stroke-width="1.2" class="svg-connector"/>
+                                    <circle cx="35" cy="518" r="10" fill="#1e293b"/>
+                                    <text x="35" y="522" text-anchor="middle" fill="#fff" font-size="10" font-weight="700">9</text>
+                                </g>
+
+                                <!-- ================================================= -->
+                                <!-- RECHTE SEITE DER GRAFIK (NUMMERN 10 - 17)         -->
+                                <!-- ================================================= -->
+
+                                <!-- 10. PALMAR / VOLAR (zur Handfläche hin) -->
+                                <g id="svg-group-palmar" class="svg-target-group">
+                                    <path d="M161,38 Q168,36 174,40" fill="none" stroke="#e11d48" stroke-width="2.5" stroke-linecap="round"/>
+                                    <line x1="325" y1="32" x2="168" y2="38" stroke="#64748b" stroke-width="1.2" class="svg-connector"/>
+                                    <circle cx="325" cy="32" r="10" fill="#0369a1"/>
+                                    <text x="325" y="36" text-anchor="middle" fill="#fff" font-size="9.5" font-weight="700">10</text>
+                                </g>
+
+                                <!-- 11. ULNAR (zur Elle hin - Kleinfingerseite Unterarm) -->
+                                <g id="svg-group-ulnar" class="svg-target-group">
+                                    <path d="M183,64 L190,90" stroke="#e11d48" stroke-width="2.5" stroke-linecap="round"/>
+                                    <line x1="325" y1="92" x2="187" y2="77" stroke="#64748b" stroke-width="1.2" class="svg-connector"/>
+                                    <circle cx="325" cy="92" r="10" fill="#0369a1"/>
+                                    <text x="325" y="96" text-anchor="middle" fill="#fff" font-size="9.5" font-weight="700">11</text>
+                                </g>
+
+                                <!-- 12. MEDIAN (in der Körpermittelebene) -->
+                                <g id="svg-group-median" class="svg-target-group">
+                                    <line x1="168" y1="204" x2="173" y2="236" stroke="#e11d48" stroke-width="2.8" stroke-linecap="round"/>
+                                    <line x1="325" y1="154" x2="171" y2="220" stroke="#64748b" stroke-width="1.2" class="svg-connector"/>
+                                    <circle cx="325" cy="154" r="10" fill="#0369a1"/>
+                                    <text x="325" y="158" text-anchor="middle" fill="#fff" font-size="9.5" font-weight="700">12</text>
+                                </g>
+
+                                <!-- 13. MEDIAL (zur Mittelebene hin) -->
+                                <g id="svg-group-medial" class="svg-target-group">
+                                    <line x1="202" y1="262" x2="178" y2="266" stroke="#e11d48" stroke-width="2.5" marker-end="url(#red-arrow)"/>
+                                    <line x1="325" y1="216" x2="190" y2="264" stroke="#64748b" stroke-width="1.2" class="svg-connector"/>
+                                    <circle cx="325" cy="216" r="10" fill="#0369a1"/>
+                                    <text x="325" y="220" text-anchor="middle" fill="#fff" font-size="9.5" font-weight="700">13</text>
+                                </g>
+
+                                <!-- 14. LATERAL (zur Seite hin) -->
+                                <g id="svg-group-lateral" class="svg-target-group">
+                                    <line x1="184" y1="292" x2="210" y2="288" stroke="#e11d48" stroke-width="2.5" marker-end="url(#red-arrow)"/>
+                                    <line x1="325" y1="278" x2="198" y2="290" stroke="#64748b" stroke-width="1.2" class="svg-connector"/>
+                                    <circle cx="325" cy="278" r="10" fill="#0369a1"/>
+                                    <text x="325" y="282" text-anchor="middle" fill="#fff" font-size="9.5" font-weight="700">14</text>
+                                </g>
+
+                                <!-- 15. ANTERIOR / VENTRAL (nach vorne / zur Bauchseite hin) -->
+                                <g id="svg-group-anterior" class="svg-target-group">
+                                    <line x1="162" y1="316" x2="136" y2="320" stroke="#e11d48" stroke-width="2.5" marker-end="url(#red-arrow)"/>
+                                    <line x1="325" y1="340" x2="152" y2="318" stroke="#64748b" stroke-width="1.2" class="svg-connector"/>
+                                    <circle cx="325" cy="340" r="10" fill="#0369a1"/>
+                                    <text x="325" y="344" text-anchor="middle" fill="#fff" font-size="9.5" font-weight="700">15</text>
+                                </g>
+
+                                <!-- 16. POSTERIOR / DORSAL (nach hinten / zum Rücken hin) -->
+                                <g id="svg-group-posterior" class="svg-target-group">
+                                    <line x1="184" y1="358" x2="208" y2="354" stroke="#e11d48" stroke-width="2.5" marker-end="url(#red-arrow)"/>
+                                    <line x1="325" y1="404" x2="196" y2="356" stroke="#64748b" stroke-width="1.2" class="svg-connector"/>
+                                    <circle cx="325" cy="404" r="10" fill="#0369a1"/>
+                                    <text x="325" y="408" text-anchor="middle" fill="#fff" font-size="9.5" font-weight="700">16</text>
+                                </g>
+
+                                <!-- 17. FIBULAR (zum Wadenbein hin - Außenseite Unterschenkel) -->
+                                <g id="svg-group-fibular" class="svg-target-group">
+                                    <path d="M234,436 Q240,455 242,472" fill="none" stroke="#e11d48" stroke-width="2.5" stroke-linecap="round"/>
+                                    <line x1="325" y1="472" x2="239" y2="454" stroke="#64748b" stroke-width="1.2" class="svg-connector"/>
+                                    <circle cx="325" cy="472" r="10" fill="#0369a1"/>
+                                    <text x="325" y="476" text-anchor="middle" fill="#fff" font-size="9.5" font-weight="700">17</text>
+                                </g>
+                            </svg>
+                        </div>
+                    </div>
+
+                    <!-- Rechte Spalte (8 Lücken) -->
+                    <div class="lg:col-span-4 flex flex-col gap-2 order-3">
+                        ${rightItems.map((item, idx) => createDropZoneHTML(item, idx + 10)).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        // ==========================================
+        // HOVER-HIGHLIGHTING AUF DER SVG-GRAFIK
+        // ==========================================
+        function highlightSvgElement(id, isActive) {
+            const group = document.getElementById(`svg-group-${id}`);
+            if (!group) return;
+
+            const connector = group.querySelector('.svg-connector');
+            if (isActive) {
+                group.classList.add('active-highlight');
+                if (connector) connector.classList.add('active-highlight');
+            } else {
+                group.classList.remove('active-highlight');
+                if (connector) connector.classList.remove('active-highlight');
+            }
+        }
+
+        // ==========================================
+        // DROP-ZONE EVENT-LISTENER & SPIELLOGIK
+        // ==========================================
+        function attachDropZoneListeners() {
+            const zones = document.querySelectorAll('.drop-zone');
+
+            zones.forEach(zone => {
+                const targetId = zone.dataset.targetId;
+
+                // Klick-Interaktion (wenn zuvor ein Wort in der Wortbank ausgewählt wurde)
+                zone.addEventListener('click', () => {
+                    if (solvedIds.has(targetId)) return;
+                    if (!selectedWordId) {
+                        // Kleiner Hinweis-Effekt, wenn noch kein Wort gewählt wurde
+                        zone.classList.add('highlighted');
+                        setTimeout(() => zone.classList.remove('highlighted'), 450);
+                        return;
+                    }
+                    evaluateAttempt(selectedWordId, targetId, zone);
+                });
+
+                // Drag & Drop Events
+                zone.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    if (solvedIds.has(targetId)) return;
+                    zone.classList.add('drag-over');
+                    highlightSvgElement(targetId, true);
+                });
+
+                zone.addEventListener('dragleave', () => {
+                    zone.classList.remove('drag-over');
+                    highlightSvgElement(targetId, false);
+                });
+
+                zone.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    zone.classList.remove('drag-over');
+                    highlightSvgElement(targetId, false);
+
+                    if (solvedIds.has(targetId)) return;
+                    const droppedId = e.dataTransfer.getData('text/plain') || draggedWordId;
+                    if (droppedId) {
+                        evaluateAttempt(droppedId, targetId, zone);
+                    }
+                });
+            });
+        }
+
+        // Prüft, ob das gezogene/gewählte Wort zur Lücke passt
+        function evaluateAttempt(wordId, targetId, zoneElement) {
+            if (wordId === targetId) {
+                // RICHTIG!
+                solvedIds.add(targetId);
+                selectedWordId = null;
+                draggedWordId = null;
+
+                updateStatsUI();
+                renderWordBank();
+                renderGameBoard();
+
+                // Prüfen, ob das komplette Level gelöst wurde
+                const totalItems = getCurrentData().length;
+                if (solvedIds.size === totalItems) {
+                    setTimeout(showVictoryModal, 450);
+                }
+            } else {
+                // FALSCH! Fehler +1 & Shake-Animation
+                errorsCount++;
+                updateStatsUI();
+
+                // Fehler-Badge kurz aufblitzen lassen
+                const errorBadge = document.getElementById('error-badge');
+                errorBadge.classList.add('bg-rose-200', 'scale-105');
+                setTimeout(() => errorBadge.classList.remove('bg-rose-200', 'scale-105'), 300);
+
+                // Lücke wackeln lassen
+                zoneElement.classList.remove('animate-shake');
+                void zoneElement.offsetWidth; // Reflow erzwingen für erneute Animation
+                zoneElement.classList.add('animate-shake');
+
+                setTimeout(() => {
+                    zoneElement.classList.remove('animate-shake');
+                }, 450);
+            }
+        }
+
+        // ==========================================
+        // ERFOLGS-MODAL STEUERUNG
+        // ==========================================
+        function showVictoryModal() {
+            const modal = document.getElementById('victory-modal');
+            const total = getCurrentData().length;
+
+            document.getElementById('victory-total').textContent = `${total} / ${total}`;
+            document.getElementById('victory-errors').textContent = errorsCount;
+
+            const nextBtn = document.getElementById('victory-next-btn');
+            if (currentLevel === 1) {
+                document.getElementById('victory-subtitle').textContent = 'Super! Du beherrschst die Körperebenen und Körperachsen.';
+                nextBtn.textContent = 'Weiter zu Level 2 (17 Begriffe) →';
+            } else {
+                document.getElementById('victory-subtitle').textContent = 'Klasse! Du hast alle 17 Lage- und Richtungsbezeichnungen gemeistert.';
+                nextBtn.textContent = 'Zurück zu Level 1';
+            }
+
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeModalAndReset() {
+            const modal = document.getElementById('victory-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            resetCurrentLevel();
+        }
+
+        function goToNextLevel() {
+            const modal = document.getElementById('victory-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            switchLevel(currentLevel === 1 ? 2 : 1);
+        }
+
+        // App beim Laden starten
+        window.onload = function() {
+            switchLevel(1);
+        };
+    </script>
+</body>
+</html>
